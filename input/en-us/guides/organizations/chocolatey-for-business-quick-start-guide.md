@@ -119,11 +119,20 @@ Below are the minimum requirements for setting up your C4B server via this guide
 
 1. In the same PowerShell Administrator console as above, paste and run the following code:
 
+    **Option 1**: Use a self-signed certificate for CCM Service:
     ```powershell
     Set-Location "$env:SystemDrive\choco-setup\files"
     .\Start-C4bCcmSetup.ps1
     ```
+    > :warning:**WARNING**: Your certificate must be placed in the LocalMachine\TrustedPeople store prior to running the code below for Option 2
+    >
+    > An error will be thrown on validation if the certificate is not found in the correct location.
 
+    **Option 2**: Use a custom certifcate for CCM Service:
+    ```powershell
+    Set-Location "$env:SystemDrive\choco-setup\files"
+    .\Start-C4bCcmSetup.ps1 -CertificateThumbprint 'YourThumbprintHere'
+    ```
     > <details>
     > <summary><strong>What does this script do? (click to expand)</strong></summary>
     > <ul class="list-style-type-disc">
