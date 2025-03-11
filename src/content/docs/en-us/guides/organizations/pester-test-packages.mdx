@@ -1,0 +1,167 @@
+---
+order: 11
+xref: pester-test-packages
+title: Using TasteTest to Validate Chocolatey Packages
+description: TasteTest is a PowerShell module that automates testing Chocolatey packages using Pester, ensuring they install, uninstall, and function correctly.
+---
+import Callout from '@choco/components/Callout.astro';
+import Iframe from '@choco/components/Iframe.astro';
+import Xref from '@components/Xref.astro';
+import ConfigurationManagers from '@components/docs/ConfigurationManagers.mdx';
+
+## **TasteTest: A PowerShell Module for Testing Chocolatey Packages with Pester**
+
+**TasteTest** is a PowerShell module designed to streamline the testing of Chocolatey packages using **Pester**. It provides a structured and automated way to validate Chocolatey package correctness, ensuring that packages are well-formed, install correctly, and function as expected.  
+
+### **Features:**
+- Package Structure Validation: Ensures required files (e.g., `.nuspec`, `chocolateyInstall.ps1`) are present and correctly formatted.
+- Install & Uninstall Testing: Automates installation and uninstallation of packages in a controlled environment.
+- **Verification of Package Metadata** - Checks versioning, dependencies, and metadata for correctness.
+- **Pester Test Integration** - Provides built-in or customizable Pester test templates for Chocolatey packages.
+- **Idempotency Testing** - Ensures multiple installs/uninstalls behave as expected without breaking the system.
+- **Dependency Handling** - Verifies that dependencies are resolved correctly and do not cause conflicts.
+- **Logging & Reporting** - Generates detailed test results in formats compatible with CI/CD pipelines.
+
+### **Use Cases:**
+- Chocolatey package maintainers can use **TasteTest** to verify their packages before publishing.
+- Teams managing Windows workloads can integrate it into their CI/CD pipelines to ensure reliable deployments.
+- IT administrators can validate internally developed Chocolatey packages for compliance and consistency.
+
+## installation
+
+You can install TasteTest via Chocolatey or from the PowerShell Gallery
+
+### Using Chocolatey
+
+```powershell
+choco install tastetest -y
+```
+
+### From PowerShell Gallery
+
+#### Windows PowerShell
+
+```powershell
+Install-Module TasteTest -Scope CurrentUser
+```
+
+#### PowerShell 7
+
+```powershell
+Install-PSResource TasteTest -Scope CurrentUser
+```
+
+## Getting Started
+
+TasteTest includes a set of built-in tests for testing Chocolatey packages and their contents.
+
+### Testing a Nuspec file
+
+You can test a nuspec file using the `Test-Nuspec` function
+
+```powershell
+Test-Nuspec -Path C:\path\to\package.nuspec
+```
+
+Run `Get-Help Test-Nuspec -Examples` for more examples of how you can test nuspec information, including your own tests.
+
+### Testing a package
+
+You can test a package using the `Test-Package` function
+
+```powershell
+Test-Package -PackagePath C:\path\to\package.nupkg
+```
+
+Run `Get-Help Test-Package -Examples` for more examples of how you can test nuspec information, including your own tests.
+
+
+## Writing your own tests
+
+<Callout type="info" Title='Get more information'>
+Get started writing your own Pester tests by visiting the [Pester Getting Started Guide](https://pester.dev/docs/quick-start)
+</Callout>
+
+You can write your own tests using Pester for use with TasteTest. Here are the built-in required package tests from this module:
+
+```powershell
+[CmdletBinding()]
+Param(
+    [Parameter(Mandatory)]
+    [String]
+    $PackagePath
+)
+
+
+BeforeAll {
+    $packageData = Get-ChildItem $PackagePath -Recurse -Force
+}
+
+Describe 'Required Package Contents Tests' {
+
+    Context 'Illegal files in package' {
+
+
+        It 'Does not contain [Content_Types].xml' {
+            $packageData | Where-Object Name -eq '[Content_Types].xml' | Should -BeNullOrEmpty -Because 'CPMR0004 - Do Not Package Internal Files (package)'
+        }
+        It 'Does not contain a _rels directory' {
+            $packageData | Where-Object Name -eq '_rels' | Should -BeNullOrEmpty -Because 'CPMR0004 - Do Not Package Internal Files (package)'
+        }
+
+        It 'Does not contain files ending in .rels' {
+            $packageData | Where-Object { $_.Extension -eq '.rels' } | Should -BeNullOrEmpty -Because 'CPMR0004 - Do Not Package Internal Files (package)'
+        }
+        It 'Does not contain files ending in .psmdcp' {
+            $packageData | Where-Object { $_.Extension -eq '.psmdcp' } | Should -BeNullOrEmpty -Because 'CPMR0004 - Do Not Package Internal Files (package)'
+        }
+
+        It 'Does not contain source files' {
+            '.git' -in $packageData.Name | Should -Be $false -Because 'CPMR0013 - Source Control Files Are Packaged (package)'
+        }
+
+        It 'Does not contain a .gitignore file' {
+            '.gitignore' -in $packageData.Name | Should -Be $false -Because 'CPMR0025 - Source Control Ignore Files Are Packaged (package)'
+        }
+    }
+
+    Context 'Scripts have been named properly' {
+        BeforeDiscovery {
+            $installScript = $packageData | Where-Object Name -eq 'chocolateyInstall.ps1'
+            $uninstallScript = $packageData | Where-Object Name -eq 'chocolateyUninstall.ps1'
+        }
+
+        It 'Install script has the correct name' {
+            'chocolateyInstall.ps1' | Should -BeIn $packageData.Name -Because 'CPMR0003 - Install Script Named Incorrectly (package)'
+        }
+
+        It 'Uninstall script has the correct name' {
+            'chocolateyUninstall.ps1' | Should -BeIn $packageData.Name -Because 'CPMR0015 - Uninstall Script Named Incorrectly (script)'
+        }
+    }
+
+    BeforeDiscovery {
+        $matcher = '\.exe|\.msi'
+        $binaries = $packageData | Where-Object { $_.Extension -match $matcher }
+    }
+
+    Context 'License.txt and Verification.txt exists for included binaries' {
+
+        if ($binaries) {
+            It 'LICENSE.txt is present' {
+                'LICENSE.txt' -in $packageData.Name | Should -Be $true -Because 'CPMR0005 - LICENSE.txt file missing when binaries included (package)'
+            }
+
+            It 'Verification.txt is present' {
+                'Verification.txt' -in $packageData.Name | Should -Be $true -Because 'CPMR0006 - VERIFICATION.txt file missing when binaries included (package)'
+            }
+        }
+    }
+}
+```
+
+## Getting Help
+
+Need help with TasteTest? If  you have an active support agreement with us, run `choco support` to reach out to our suppoprt team!
+
+You can also ask for assistance on our Community Discord server! Join the community at [https://chocolatey.org/community](https://ch0.co/community) and ask your questions in the `#tastetest` channel.
